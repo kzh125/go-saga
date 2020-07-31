@@ -1,14 +1,15 @@
 package saga_test
 
 import (
-	"golang.org/x/net/context"
+	"context"
 
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/kzh125/go-saga"
 	_ "github.com/kzh125/go-saga/storage/kafka"
 	"github.com/stretchr/testify/assert"
-	"testing"
-	"time"
 )
 
 func initKafka(mode FailureMode) {

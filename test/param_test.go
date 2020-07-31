@@ -1,11 +1,12 @@
 package saga_test
 
 import (
+	"context"
 	"fmt"
-	"github.com/kzh125/go-saga"
-	"golang.org/x/net/context"
 	"reflect"
 	"testing"
+
+	"github.com/kzh125/go-saga"
 )
 
 func Param1(ctx context.Context, name string, aga int) {

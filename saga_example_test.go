@@ -1,7 +1,7 @@
 package saga_test
 
 import (
-	"golang.org/x/net/context"
+	"context"
 	"time"
 
 	"github.com/kzh125/go-saga"

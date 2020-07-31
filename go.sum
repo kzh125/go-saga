@@ -44,10 +44,6 @@ github.com/kr/pretty v0.2.0/go.mod h1:ipq/a2n7PKx3OHsz4KJII5eveXtPO4qwEXGdVfWzfn
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0 h1:45sCR5RtlFHMR4UwH9sdQ5TC8v0qDQCHnXt+kaKSTVE=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
-github.com/kzh125/go-saga v0.0.0-20160426172250-a5372c967a5b h1:QrDWxYZIoKUx725zxpvL3f9jea4ZELUEp9s6U9AmUqA=
-github.com/kzh125/go-saga v0.0.0-20160426172250-a5372c967a5b/go.mod h1:Xo2eV3G84agvQkPCywYfK+/T3I4GF0m5ZADyuXSj7/o=
-github.com/lysu/go-saga v0.0.0-20160426172250-a5372c967a5b h1:5EfZnnxqR7IP8XqA1K3Vfwb5dJrjUdbjS2wDqGknFiE=
-github.com/lysu/go-saga v0.0.0-20160426172250-a5372c967a5b/go.mod h1:4Row2WQ5AAZW/EKLki2jDsS+3m/ZMxFquN5NLR0fwS4=
 github.com/lysu/kazoo-go v0.0.0-20160229162054-26744d16cdcf h1:iApir20Ag/TA+YamD8mMYulbPxZDffzolZImCNWAcps=
 github.com/lysu/kazoo-go v0.0.0-20160229162054-26744d16cdcf/go.mod h1:0LWnx1mFeeTIXPerduqEE3XqwwE1NqeR5/f7KPA7qOA=
 github.com/pierrec/lz4 v2.4.1+incompatible h1:mFe7ttWaflA46Mhqh+jUfjp2qTbPYxLB2/OyBppH9dg=

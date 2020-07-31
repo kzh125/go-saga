@@ -1,9 +1,10 @@
 package saga
 
 import (
-	"github.com/stretchr/testify/assert"
-	"golang.org/x/net/context"
+	"context"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func T1(ctx context.Context) {

@@ -1,11 +1,12 @@
 package saga
 
 import (
+	"context"
 	"fmt"
-	"github.com/juju/errors"
-	"golang.org/x/net/context"
 	"reflect"
 	"strconv"
+
+	"github.com/juju/errors"
 )
 
 // DefaultSEC is default SEC use by package method

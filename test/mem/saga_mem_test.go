@@ -1,12 +1,13 @@
 package saga_test
 
 import (
+	"context"
 	"fmt"
+	"testing"
+
 	"github.com/kzh125/go-saga"
 	_ "github.com/kzh125/go-saga/storage/memory"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/net/context"
-	"testing"
 )
 
 func initIt(mode FailureMode) {

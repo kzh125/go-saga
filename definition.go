@@ -1,7 +1,7 @@
 package saga
 
 import (
-	"golang.org/x/net/context"
+	"context"
 	"reflect"
 )
 
