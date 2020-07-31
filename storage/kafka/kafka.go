@@ -1,34 +1,16 @@
 package kafka
 
 import (
+	"log"
+	"strings"
+	"time"
+
 	"github.com/Shopify/sarama"
 	"github.com/juju/errors"
 	"github.com/kzh125/go-saga"
 	"github.com/kzh125/go-saga/storage"
 	"github.com/lysu/kazoo-go"
-	"strings"
-	"sync"
-	"time"
 )
-
-var storageInstance storage.Storage
-var kafkaInit sync.Once
-
-func init() {
-	saga.StorageProvider = func(cfg storage.StorageConfig) storage.Storage {
-		kafkaInit.Do(func() {
-			var err error
-			storageInstance, err = newKafkaStorage(
-				cfg.Kafka.ZkAddrs, cfg.Kafka.BrokerAddrs, cfg.Kafka.Partitions,
-				cfg.Kafka.Replicas, cfg.Kafka.ReturnDuration,
-			)
-			if err != nil {
-				panic(err)
-			}
-		})
-		return storageInstance
-	}
-}
 
 type kafkaStorage struct {
 	producer              sarama.SyncProducer
@@ -37,10 +19,12 @@ type kafkaStorage struct {
 	partitionNumbers      int
 	replicaNumbers        int
 	consumeReturnDuration time.Duration
+	logger                *log.Logger
+	logPrefix             string
 }
 
 // NewKafkaStorage creates log storage base on Kafka.
-func newKafkaStorage(zkAddrs, brokerAddrs []string, partitions, replicas int, returnDuration time.Duration) (storage.Storage, error) {
+func NewKafkaStorage(zkAddrs, brokerAddrs []string, partitions, replicas int, returnDuration time.Duration, logPrefix string, logger *log.Logger) (storage.Storage, error) {
 	conf := kazoo.NewConfig()
 	kz, err := kazoo.NewKazoo(zkAddrs, conf)
 	if err != nil {
@@ -61,6 +45,7 @@ func newKafkaStorage(zkAddrs, brokerAddrs []string, partitions, replicas int, re
 		partitionNumbers:      partitions,
 		replicaNumbers:        replicas,
 		consumeReturnDuration: returnDuration,
+		logger:                logger,
 	}, nil
 }
 
@@ -81,7 +66,7 @@ func (s *kafkaStorage) AppendLog(logID string, data string) error {
 	if err != nil {
 		return errors.Annotatef(err, " failure send %s", data)
 	}
-	saga.Logger.Printf("> message sent to partition %d at offset %d\n", partition, offset)
+	s.logger.Printf("> message sent to partition %d at offset %d\n", partition, offset)
 	return nil
 }
 
@@ -94,7 +79,7 @@ func (s *kafkaStorage) Lookup(logID string) ([]string, error) {
 
 	defer func() {
 		if err := partitionConsumer.Close(); err != nil {
-			saga.Logger.Printf("[WARNING]Close consumer failure %v", err)
+			s.logger.Printf("[WARNING]Close consumer failure %v", err)
 		}
 	}()
 
@@ -106,7 +91,7 @@ consumer_loop:
 	for {
 		select {
 		case msg := <-partitionConsumer.Messages():
-			saga.Logger.Printf("Consumed message offset %d\n", msg.Offset)
+			s.logger.Printf("Consumed message offset %d\n", msg.Offset)
 			consumed++
 			msgValue := string(msg.Value)
 			data = append(data, msgValue)
@@ -116,7 +101,7 @@ consumer_loop:
 		}
 	}
 
-	saga.Logger.Printf("Consumed: %d\n", consumed)
+	s.logger.Printf("Consumed: %d\n", consumed)
 	return data, nil
 }
 

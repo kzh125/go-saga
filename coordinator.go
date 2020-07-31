@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"strconv"
 
 	"github.com/juju/errors"
+	"github.com/kzh125/go-saga/storage"
 )
 
 // DefaultSEC is default SEC use by package method
-var DefaultSEC ExecutionCoordinator = NewSEC()
+// var DefaultSEC ExecutionCoordinator = NewSEC()
 
 // ExecutionCoordinator presents Saga Execution Coordinator.
 // It manages:
@@ -19,30 +19,22 @@ var DefaultSEC ExecutionCoordinator = NewSEC()
 type ExecutionCoordinator struct {
 	subTxDefinitions  subTxDefinitions
 	paramTypeRegister *paramTypeRegister
+	store             storage.Storage
+	logPrefix         string
 }
 
 // NewSEC creates Saga Execution Coordinator
 // This method require supply a log Storage to save & lookup log during tx execute.
-func NewSEC() ExecutionCoordinator {
+func NewSEC(store storage.Storage, logPrefix string) ExecutionCoordinator {
 	return ExecutionCoordinator{
 		subTxDefinitions: make(subTxDefinitions),
 		paramTypeRegister: &paramTypeRegister{
 			nameToType: make(map[string]reflect.Type),
 			typeToName: make(map[reflect.Type]string),
 		},
+		store:     store,
+		logPrefix: logPrefix,
 	}
-}
-
-// AddSubTxDef create & add definition base on given subTxID, action and compensate, and return current SEC.
-//
-// This execute as Default SEC.
-// subTxID identifies a sub-transaction type, it also be use to persist into saga-log and be lookup for retry
-// action defines the action that sub-transaction will execute.
-// compensate defines the compensate that sub-transaction will execute when sage aborted.
-//
-// action and compensate MUST a function that context.Context as first argument.
-func AddSubTxDef(subTxID string, action interface{}, compensate interface{}) *ExecutionCoordinator {
-	return DefaultSEC.AddSubTxDef(subTxID, action, compensate)
 }
 
 // AddSubTxDef create & add definition base on given subTxID, action and compensate, and return current SEC.
@@ -90,12 +82,12 @@ func (e *ExecutionCoordinator) MustFindParamType(name string) reflect.Type {
 }
 
 func (e *ExecutionCoordinator) StartCoordinator() error {
-	logIDs, err := LogStorage().LogIDs()
+	logIDs, err := e.store.LogIDs()
 	if err != nil {
 		return errors.Annotate(err, "Fetch logs failure")
 	}
 	for _, logID := range logIDs {
-		lastLogData, err := LogStorage().LastLog(logID)
+		lastLogData, err := e.store.LastLog(logID)
 		if err != nil {
 			return errors.Annotate(err, "Fetch last log panic")
 		}
@@ -104,20 +96,15 @@ func (e *ExecutionCoordinator) StartCoordinator() error {
 	return nil
 }
 
-// StartSaga start a new saga, returns the saga was started in Default SEC.
-// This method need execute context and UNIQUE id to identify saga instance.
-func StartSaga(ctx context.Context, id uint64) *Saga {
-	return DefaultSEC.StartSaga(ctx, id)
-}
-
 // StartSaga start a new saga, returns the saga was started.
 // This method need execute context and UNIQUE id to identify saga instance.
-func (e *ExecutionCoordinator) StartSaga(ctx context.Context, id uint64) *Saga {
+func (e *ExecutionCoordinator) StartSaga(ctx context.Context, id string) *Saga {
 	s := &Saga{
 		id:      id,
 		context: ctx,
 		sec:     e,
-		logID:   LogPrefix + strconv.FormatInt(int64(id), 10),
+		logID:   LogPrefix + id,
+		store:   e.store,
 	}
 	s.startSaga()
 	return s
