@@ -2,8 +2,8 @@ package memory
 
 import (
 	"github.com/juju/errors"
-	"github.com/lysu/go-saga"
-	"github.com/lysu/go-saga/storage"
+	"github.com/kzh125/go-saga"
+	"github.com/kzh125/go-saga/storage"
 	"sync"
 )
 

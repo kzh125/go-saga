@@ -2,7 +2,7 @@ package saga_test
 
 import (
 	"fmt"
-	"github.com/lysu/go-saga"
+	"github.com/kzh125/go-saga"
 	"golang.org/x/net/context"
 	"reflect"
 	"testing"
