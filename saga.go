@@ -45,6 +45,9 @@ func (s *Saga) startSaga() {
 // ExecSub executes a sub-transaction for given subTxID(which define in SEC initialize) and arguments.
 // it returns current Saga.
 func (s *Saga) ExecSub(subTxID string, args ...interface{}) *Saga {
+	if s.abort {
+		return s
+	}
 	subTxDef := s.sec.MustFindSubTxDef(subTxID)
 	log := &Log{
 		Type:    ActionStart,
@@ -64,6 +67,7 @@ func (s *Saga) ExecSub(subTxID string, args ...interface{}) *Saga {
 	}
 	result := subTxDef.action.Call(params)
 	if isReturnError(result) {
+		s.err, _ = result[0].Interface().(error)
 		s.Abort()
 		return s
 	}
@@ -81,7 +85,7 @@ func (s *Saga) ExecSub(subTxID string, args ...interface{}) *Saga {
 }
 
 // EndSaga finishes a Saga's execution.
-func (s *Saga) EndSaga() {
+func (s *Saga) EndSaga() error {
 	log := &Log{
 		Type: SagaEnd,
 		Time: time.Now(),
@@ -94,12 +98,14 @@ func (s *Saga) EndSaga() {
 	if err != nil {
 		panic(fmt.Errorf("EndSaga Cleanup: %v", err))
 	}
+	return s.err
 }
 
 // Abort stop and compensate to rollback to start situation.
 // This method will stop continue sub-transaction and do Compensate for executed sub-transaction.
 // SubTx will call this method internal.
 func (s *Saga) Abort() {
+	s.abort = true
 	logs, err := s.store.Lookup(s.logID)
 	if err != nil {
 		panic(fmt.Errorf("Abort Lookup: %v", err))
@@ -141,9 +147,15 @@ func (s *Saga) compensate(tlog Log) error {
 	params = append(params, args...)
 
 	subDef := s.sec.MustFindSubTxDef(tlog.SubTxID)
-	result := subDef.compensate.Call(params)
-	if isReturnError(result) {
-		s.Abort()
+
+	const maxTry = 10
+	for i := 0; i < maxTry; i++ {
+		result := subDef.compensate.Call(params)
+		if !isReturnError(result) {
+			break
+		}
+		err, _ := result[0].Interface().(error)
+		return fmt.Errorf("max try compensate: %v", err)
 	}
 
 	clog = &Log{
