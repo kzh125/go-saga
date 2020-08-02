@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	github.com/Shopify/sarama v1.26.4
+	github.com/gomodule/redigo v1.8.2
 	github.com/juju/errors v0.0.0-20200330140219-3fe23663418f
 	github.com/juju/testing v0.0.0-20200706033705-4c23f9c453cd // indirect
 	github.com/lysu/kazoo-go v0.0.0-20160229162054-26744d16cdcf
