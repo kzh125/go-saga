@@ -37,15 +37,17 @@ type paramTypeRegister struct {
 func (r *paramTypeRegister) addParams(fc interface{}) {
 	funcValue := subTxMethod(fc)
 	funcType := funcValue.Type()
+	// use paramType.String() instead of paramType.Name() here
+	// since proto1.UpdateRequest and  proto2.UpdateRequest have the same Name
 	for i := 0; i < funcType.NumIn(); i++ {
 		paramType := funcType.In(i)
-		r.nameToType[paramType.Name()] = paramType
-		r.typeToName[paramType] = paramType.Name()
+		r.nameToType[paramType.String()] = paramType
+		r.typeToName[paramType] = paramType.String()
 	}
 	for i := 0; i < funcType.NumOut(); i++ {
 		returnType := funcType.Out(i)
-		r.nameToType[returnType.Name()] = returnType
-		r.typeToName[returnType] = returnType.Name()
+		r.nameToType[returnType.String()] = returnType
+		r.typeToName[returnType] = returnType.String()
 	}
 }
 
