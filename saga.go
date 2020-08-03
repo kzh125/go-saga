@@ -10,6 +10,7 @@ package saga
 import (
 	"fmt"
 	"reflect"
+	"sync"
 	"time"
 
 	"context"
@@ -26,10 +27,17 @@ type Saga struct {
 	logID          string
 	context        context.Context
 	sec            *ExecutionCoordinator
+	store          storage.Storage
+	compensateFail bool
+	mu             sync.Mutex // protects following fields
 	err            error
 	abort          bool
-	compensateFail bool
-	store          storage.Storage
+}
+
+// ExecSubParams is params for ExecSub
+type ExecSubParams struct {
+	SubTxID string
+	Args    []interface{}
 }
 
 func (s *Saga) startSaga() {
@@ -46,7 +54,10 @@ func (s *Saga) startSaga() {
 // ExecSub executes a sub-transaction for given subTxID(which define in SEC initialize) and arguments.
 // it returns current Saga.
 func (s *Saga) ExecSub(subTxID string, args ...interface{}) *Saga {
-	if s.abort {
+	s.mu.Lock()
+	abort := s.abort
+	s.mu.Unlock()
+	if abort {
 		return s
 	}
 	subTxDef := s.sec.MustFindSubTxDef(subTxID)
@@ -67,7 +78,9 @@ func (s *Saga) ExecSub(subTxID string, args ...interface{}) *Saga {
 	}
 	result := subTxDef.action.Call(params)
 	if isReturnError(result) {
+		s.mu.Lock()
 		s.err, _ = result[0].Interface().(error)
+		s.mu.Unlock()
 		s.Abort()
 		return s
 	}
@@ -85,6 +98,24 @@ func (s *Saga) ExecSub(subTxID string, args ...interface{}) *Saga {
 	return s
 }
 
+// ExecSubConcurrent executes sub-transactions concurrently.
+// it returns current Saga.
+func (s *Saga) ExecSubConcurrent(subTxsList ...[]ExecSubParams) *Saga {
+	var n sync.WaitGroup
+	for _, subTxs := range subTxsList {
+		n.Add(1)
+		subTxs := subTxs
+		go func() {
+			defer n.Done()
+			for _, subTx := range subTxs {
+				s.ExecSub(subTx.SubTxID, subTx.Args...)
+			}
+		}()
+	}
+	n.Wait()
+	return s
+}
+
 // EndSaga finishes a Saga's execution.
 func (s *Saga) EndSaga() error {
 	log := &Log{
@@ -95,6 +126,7 @@ func (s *Saga) EndSaga() error {
 	if err != nil {
 		panic(fmt.Errorf("EndSaga AppendLog: %v", err))
 	}
+	// EndSaga is last step, don't need mutex lock for s.err
 	// in case of compensate failure, we don't clean up logs
 	if s.compensateFail {
 		return s.err
@@ -110,7 +142,9 @@ func (s *Saga) EndSaga() error {
 // This method will stop continue sub-transaction and do Compensate for executed sub-transaction.
 // SubTx will call this method internal.
 func (s *Saga) Abort() {
+	s.mu.Lock()
 	s.abort = true
+	s.mu.Unlock()
 	logs, err := s.store.Lookup(s.logID)
 	if err != nil {
 		panic(fmt.Errorf("Abort Lookup: %v", err))

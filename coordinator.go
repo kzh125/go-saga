@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"sync"
 
 	"github.com/juju/errors"
 	"github.com/kzh125/go-saga/storage"
@@ -21,6 +22,7 @@ type ExecutionCoordinator struct {
 	paramTypeRegister *paramTypeRegister
 	store             storage.Storage
 	logPrefix         string
+	mu                sync.RWMutex
 }
 
 // NewSEC creates Saga Execution Coordinator
@@ -45,6 +47,8 @@ func NewSEC(store storage.Storage, logPrefix string) ExecutionCoordinator {
 //
 // action and compensate MUST a function that context.Context as first argument.
 func (e *ExecutionCoordinator) AddSubTxDef(subTxID string, action interface{}, compensate interface{}) *ExecutionCoordinator {
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	e.paramTypeRegister.addParams(action)
 	e.paramTypeRegister.addParams(compensate)
 	e.subTxDefinitions.addDefinition(subTxID, action, compensate)
@@ -54,6 +58,8 @@ func (e *ExecutionCoordinator) AddSubTxDef(subTxID string, action interface{}, c
 // MustFindSubTxDef returns sub transaction definition by given subTxID.
 // Panic if not found sub-transaction.
 func (e *ExecutionCoordinator) MustFindSubTxDef(subTxID string) subTxDefinition {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
 	define, ok := e.subTxDefinitions.findDefinition(subTxID)
 	if !ok {
 		panic("SubTxID: " + subTxID + " not found in context")
@@ -64,6 +70,8 @@ func (e *ExecutionCoordinator) MustFindSubTxDef(subTxID string) subTxDefinition 
 // MustFindParamName return param name by given reflect type.
 // Panic if param name not found.
 func (e *ExecutionCoordinator) MustFindParamName(typ reflect.Type) string {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
 	name, ok := e.paramTypeRegister.findTypeName(typ)
 	if !ok {
 		panic("Find Param Name Panic: " + typ.String())
@@ -74,6 +82,8 @@ func (e *ExecutionCoordinator) MustFindParamName(typ reflect.Type) string {
 // MustFindParamType return param type by given name.
 // Panic if param type not found.
 func (e *ExecutionCoordinator) MustFindParamType(name string) reflect.Type {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
 	typ, ok := e.paramTypeRegister.findType(name)
 	if !ok {
 		panic("Find Param Type Panic: " + name)
