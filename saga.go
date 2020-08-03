@@ -54,7 +54,6 @@ func (s *Saga) ExecSub(subTxID string, args ...interface{}) *Saga {
 		Type:    ActionStart,
 		SubTxID: subTxID,
 		Time:    time.Now(),
-		Params:  MarshalParam(s.sec, args),
 	}
 	err := s.store.AppendLog(s.logID, log.mustMarshal())
 	if err != nil {
@@ -77,6 +76,7 @@ func (s *Saga) ExecSub(subTxID string, args ...interface{}) *Saga {
 		Type:    ActionEnd,
 		SubTxID: subTxID,
 		Time:    time.Now(),
+		Params:  MarshalParam(s.sec, args),
 	}
 	err = s.store.AppendLog(s.logID, log.mustMarshal())
 	if err != nil {
@@ -97,7 +97,7 @@ func (s *Saga) EndSaga() error {
 	}
 	// in case of compensate failure, we don't clean up logs
 	if s.compensateFail {
-		return nil
+		return s.err
 	}
 	err = s.store.Cleanup(s.logID)
 	if err != nil {
@@ -126,12 +126,13 @@ func (s *Saga) Abort() {
 	for i := len(logs) - 1; i >= 0; i-- {
 		logData := logs[i]
 		log := mustUnmarshalLog(logData)
-		if log.Type == ActionStart {
+		if log.Type == ActionEnd {
 			if err := s.compensate(log); err != nil {
 				// save log ids of compensate failure saga instead of panic
 				// panic(fmt.Errorf("Compensate Failure: %v", err))
 				s.compensateFail = true
 				s.store.AppendLog("sagacompensate_failures", s.logID)
+				return
 			}
 		}
 	}
