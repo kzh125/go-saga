@@ -22,13 +22,14 @@ const LogPrefix = "saga"
 // Saga presents current execute transaction.
 // A Saga constituted by small sub-transactions.
 type Saga struct {
-	id      string
-	logID   string
-	context context.Context
-	sec     *ExecutionCoordinator
-	err     error
-	abort   bool
-	store   storage.Storage
+	id             string
+	logID          string
+	context        context.Context
+	sec            *ExecutionCoordinator
+	err            error
+	abort          bool
+	compensateFail bool
+	store          storage.Storage
 }
 
 func (s *Saga) startSaga() {
@@ -94,6 +95,10 @@ func (s *Saga) EndSaga() error {
 	if err != nil {
 		panic(fmt.Errorf("EndSaga AppendLog: %v", err))
 	}
+	// in case of compensate failure, we don't clean up logs
+	if s.compensateFail {
+		return nil
+	}
 	err = s.store.Cleanup(s.logID)
 	if err != nil {
 		panic(fmt.Errorf("EndSaga Cleanup: %v", err))
@@ -125,6 +130,7 @@ func (s *Saga) Abort() {
 			if err := s.compensate(log); err != nil {
 				// save log ids of compensate failure saga instead of panic
 				// panic(fmt.Errorf("Compensate Failure: %v", err))
+				s.compensateFail = true
 				s.store.AppendLog("sagacompensate_failures", s.logID)
 			}
 		}
