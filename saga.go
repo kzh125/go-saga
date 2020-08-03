@@ -123,7 +123,9 @@ func (s *Saga) Abort() {
 		log := mustUnmarshalLog(logData)
 		if log.Type == ActionStart {
 			if err := s.compensate(log); err != nil {
-				panic("Compensate Failure..")
+				// save log ids of compensate failure saga instead of panic
+				// panic(fmt.Errorf("Compensate Failure: %v", err))
+				s.store.AppendLog("sagacompensate_failures", s.logID)
 			}
 		}
 	}
@@ -143,18 +145,24 @@ func (s *Saga) compensate(tlog Log) error {
 	args := UnmarshalParam(s.sec, tlog.Params)
 
 	params := make([]reflect.Value, 0, len(args)+1)
-	params = append(params, reflect.ValueOf(s.context))
+	// compensate.Call may always fail if s.context is canceled
+	// so we use context.Background() instead of s.context here
+	params = append(params, reflect.ValueOf(context.Background()))
 	params = append(params, args...)
 
 	subDef := s.sec.MustFindSubTxDef(tlog.SubTxID)
 
 	const maxTry = 10
+	var ok bool
 	for i := 0; i < maxTry; i++ {
 		result := subDef.compensate.Call(params)
 		if !isReturnError(result) {
+			ok = true
 			break
 		}
-		err, _ := result[0].Interface().(error)
+		err, _ = result[0].Interface().(error)
+	}
+	if !ok {
 		return fmt.Errorf("max try compensate: %v", err)
 	}
 
